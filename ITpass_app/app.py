@@ -5,7 +5,6 @@ import random
 # ==========================================
 # ユーザー認証用の簡易データベースの初期化
 # ==========================================
-# セッションを跨いでアカウントを保持するため、Streamlitの初期化処理に入れます
 if "user_db" not in st.session_state:
     st.session_state.user_db = {
         "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
@@ -122,7 +121,6 @@ if "score" not in st.session_state: st.session_state.score = 0
 if "wrong_questions" not in st.session_state: st.session_state.wrong_questions = []
 if "selected_choice" not in st.session_state: st.session_state.selected_choice = None
 
-# 全ユーザーの苦手分析を保持するデータベース
 if "all_users_weakness" not in st.session_state:
     st.session_state.all_users_weakness = {}
 
@@ -133,58 +131,181 @@ if "vocab_selected_choice" not in st.session_state: st.session_state.vocab_selec
 if "vocab_score" not in st.session_state: st.session_state.vocab_score = 0
 if "weak_vocab_list" not in st.session_state: st.session_state.weak_vocab_list = []
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="ITパスポート 試験対策アプリ")
 
 # ==========================================
-# 4. サイバーパンクCSS
+# 4. クラシックブルー＆マイクロテクスチャCSS
+# ==========================================
+# ==========================================
+# 4. クラシックブルー＆マイクロテクスチャCSS
 # ==========================================
 st.markdown(
     """
     <style>
+    /* 全体背景：指定色 #466b91 + 上品なマイクロドットテクスチャを融合 */
     .stApp {
-        background-color: #0a0a0c !important;
-        background-image: linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px) !important;
-        background-size: 40px 40px !important;
-        font-family: 'Courier New', Courier, monospace !important;
-        color: #39ff14 !important;
+        background-color: #466b91 !important;
+        background-image: 
+            radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+            linear-gradient(135deg, #466b91 0%, #3a597a 100%) !important;
+        background-size: 20px 20px, 100% 100% !important;
+        font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif !important;
+        color: #ffffff !important;
     }
+    
+    /* ベースのテキストカラーを白に固定 */
+    .stApp [data-testid="stMarkdownContainer"] p, 
+    .stApp [data-testid="stMarkdownContainer"] li,
+    .stApp [data-testid="stMarkdownContainer"] span {
+        color: #ffffff;
+    }
+    
+    /* タイトルやメイン見出し */
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+        color: #ffffff;
+        font-weight: 700 !important;
+    }
+    
+    /* 各種情報カード（眩しさを抑えたシルキーホワイト） */
     .hud-panel {
-        background: rgba(10, 25, 47, 0.8);
-        border: 1px solid #00d4ff;
-        padding: 20px;
-        border-radius: 5px;
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         margin-bottom: 20px;
     }
+    /* カード内のフォントを落ち着いたダークグレーに引き締める */
+    .hud-panel, .hud-panel * {
+        color: #223142 !important;
+    }
+
+    /* 解説ボックス */
+    .explanation-box {
+        background-color: #e2e8f0 !important;
+        padding: 15px;
+        border-radius: 6px;
+        border-left: 4px solid #466b91;
+        margin-bottom: 15px;
+    }
+    .explanation-box, .explanation-box * {
+        color: #1e293b !important;
+    }
+
+    /* 認証フォームエリア */
+    div[data-testid="stForm"] {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px;
+        padding: 25px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+    div[data-testid="stForm"], div[data-testid="stForm"] * {
+        color: #223142 !important;
+    }
+    div[data-testid="stForm"] div[data-testid="stWidgetLabel"] p {
+        color: #223142 !important;
+        font-weight: 600;
+    }
+    
+    /* テキスト入力エリア */
+    .stApp input {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    /* タブの視認性調整 */
+    div[data-testid="stTabs"] button {
+        color: #cbd5e1 !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+    }
+    div[data-testid="stTabs"] button[aria-selected="true"] {
+        color: #ffffff !important;
+        border-bottom: 3px solid #ffffff !important;
+    }
+
+    /* ------------------------------------------
+       【修正】ボタン関連のスタイル（優先度整理）
+       ------------------------------------------ */
+    
+    /* 1. すべてのボタンのデフォルト（通常ボタン）：サイドバーと同じ濃いネイビー */
     div.stButton > button {
-        font-family: 'Courier New', Courier, monospace !important;
-        border-radius: 0 !important;
-        border: 1px solid #00ffff !important;
-        background: #000 !important;
+        font-family: inherit !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.2s ease;
+        background-color: #1c2e42 !important; /* サイドバーと同じ濃いネイビー */
+        color: #ffffff !important; /* 文字色は白で固定 */
+        border: 1px solid rgba(255, 255, 255, 0.2) !important; /* 軽い白枠 */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* 通常ボタンのホバー時 */
+    div.stButton > button:hover {
+        background-color: #253d58 !important; /* 少し明るく */
+        color: #ffffff !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+    
+    /* 2. Primaryボタン（本試験シミュレーションなど）：知的なディープナイトブルー */
+    div.stButton > button[data-testid="baseButton-primary"] {
+        background-color: #1e2d42 !important;
+        border-color: #1e2d42 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Primaryボタンのホバー時 */
+    div.stButton > button[data-testid="baseButton-primary"]:hover {
+        background-color: #121c2b !important;
+        border-color: #121c2b !important;
+        color: #ffffff !important;
+    }
+
+    /* ------------------------------------------ */
+
+    /* サイドバーの背景：全体背景に溶け込む深めのミッドナイトネイビー */
+    section[data-testid="stSidebar"] {
+        background-color: #1c2e42 !important;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px) !important;
+        background-size: 16px 16px !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] button {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] button:hover {
+        background-color: rgba(255, 255, 255, 0.2) !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.title("IT-PASSPORT_SYSTEM_V.3.5")
+st.title("📝 ITパスポート 試験対策システム")
 st.divider()
 
 # ==========================================
 # 5. ログインチェック & 認証・アカウント作成画面
 # ==========================================
 if not st.session_state.logged_in and not st.session_state.is_guest:
-    st.markdown("<h3 style='color:#00ffff;'>🔐 ACCESS SECURITY GATE (認証セキュリティゲート)</h3>", unsafe_allow_html=True)
+    st.markdown("### 🔐 ログイン・新規登録")
     
-    # タブを使ってログインとサインアップ、ゲストアクセスをスマートに配置
-    tab_login, tab_register, tab_guest = st.tabs(["🔑 OPERATOR LOGIN", "➕ CREATE NEW ACCOUNT", "⚡ GUEST ACCESSS"])
+    tab_login, tab_register, tab_guest = st.tabs(["🔑 ログイン", "➕ 新規アカウント作成", "⚡ ゲストプレイ"])
     
     # --- タブ1：ログイン ---
     with tab_login:
         with st.form("login_form"):
-            input_user = st.text_input("USER ID (ユーザーID)", placeholder="例: user01")
-            input_pass = st.text_input("PASSWORD (パスワード)", type="password", placeholder="••••••••")
-            submit_login = st.form_submit_button("認証シークエンス実行", use_container_width=True)
+            input_user = st.text_input("ユーザーID", placeholder="例: user01")
+            input_pass = st.text_input("パスワード", type="password", placeholder="••••••••")
+            submit_login = st.form_submit_button("ログインする", use_container_width=True, type="primary")
             
             if submit_login:
                 db = st.session_state.user_db
@@ -198,52 +319,49 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                         st.session_state.all_users_weakness[input_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
                     st.rerun()
                 else:
-                    st.error("INVALID CREDENTIALS: IDまたはパスワードが一致しません。")
+                    st.error("エラー: IDまたはパスワードが一致しません。")
                     
     # --- タブ2：新規アカウント作成 ---
     with tab_register:
         with st.form("register_form"):
-            st.markdown("<p style='color:#00ffff;'>新しいオペレーター情報をホストに登録します。</p>", unsafe_allow_html=True)
-            reg_user = st.text_input("希望のUSER ID (英数字のみ)", placeholder="例: cyber_stud88")
-            reg_name = st.text_input("表示されるオペレーター名 (自由)", placeholder="例: 🚀超高速学習者")
-            reg_pass = st.text_input("PASSWORD (パスワード)", type="password", placeholder="••••••••")
-            submit_register = st.form_submit_button("新規オペレーターとして登録申請", use_container_width=True)
+            st.markdown("必要情報を入力して、新しい学習用アカウントを発行します。")
+            reg_user = st.text_input("希望するユーザーID (英数字)", placeholder="例: study_user")
+            reg_name = st.text_input("表示名（ニックネーム）", placeholder="例: 合格を目指す人")
+            reg_pass = st.text_input("パスワード", type="password", placeholder="••••••••")
+            submit_register = st.form_submit_button("新規登録を実行", use_container_width=True)
             
             if submit_register:
                 if not reg_user or not reg_name or not reg_pass:
-                    st.error("入力エラー: 全ての項目を入力してください。")
+                    st.error("エラー: 全ての項目を入力してください。")
                 elif reg_user in st.session_state.user_db:
-                    st.error("REGISTRATION REJECTED: そのユーザーIDは既にシステムに登録されています。")
+                    st.error("エラー: そのユーザーIDは既に登録されています。")
                 else:
-                    # ユーザーデータベース（セッション）に追加
                     st.session_state.user_db[reg_user] = {"password": reg_pass, "name": reg_name}
-                    # 苦手カウンターも同時に初期化
                     st.session_state.all_users_weakness[reg_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-                    st.success(f"SUCCESS: 登録が完了しました！上の『LOGIN』タブからログインしてください。")
+                    st.success("アカウントが作成されました！「ログイン」タブからログインしてください。")
 
     # --- タブ3：ゲストプレイ ---
     with tab_guest:
-        st.markdown("<p style='color:#ffaa00;'>アカウントを作らず、一時的なセクションとして即座に演習コアを立ち上げます。</p>", unsafe_allow_html=True)
-        if st.button("⚡ GUEST BOOT SEQUENCE (ゲスト接続開始)", use_container_width=True):
+        st.markdown("アカウントを作成せず、すぐに模擬問題を体験できます（※学習履歴は保存されません）。")
+        if st.button("ゲストモードで開始する", use_container_width=True, type="primary"):
             st.session_state.is_guest = True
             st.session_state.logged_in = False
             st.session_state.username = "guest_user"
-            st.session_state.display_name = "GUEST_OPERATOR"
+            st.session_state.display_name = "ゲストユーザー"
             st.session_state.all_users_weakness["guest_user"] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
             st.rerun()
             
-    st.stop()  # ゲートを通過するまで以降のメインコンテンツは非表示
+    st.stop()
 
-# 現在アクティブなプレイヤーのカルテを抽出
 current_weakness = st.session_state.all_users_weakness[st.session_state.username]
 
 # ==========================================
 # 6. アプリメニュー（サイドバー）
 # ==========================================
-status_label = "👤 REG_OPERATOR" if st.session_state.logged_in else "🔌 GUEST_MODE"
-st.sidebar.markdown(f"<span style='color:#39ff14;'>{status_label}: {st.session_state.display_name}</span>", unsafe_allow_html=True)
+status_label = "👤 正規ユーザー" if st.session_state.logged_in else "🔌 ゲスト"
+st.sidebar.markdown(f"**{status_label}: {st.session_state.display_name}**")
 
-if st.sidebar.button("🚪 LOGOUT (システム切断)", use_container_width=True):
+if st.sidebar.button("🚪 ログアウト", use_container_width=True):
     st.session_state.logged_in = False
     st.session_state.is_guest = False
     st.session_state.username = None
@@ -251,64 +369,67 @@ if st.sidebar.button("🚪 LOGOUT (システム切断)", use_container_width=Tru
     back_to_home()
 
 st.sidebar.divider()
-if st.sidebar.button("🏠 RETURN TO HOME", use_container_width=True):
+if st.sidebar.button("🏠 ホーム画面に戻る", use_container_width=True):
     back_to_home()
     
 st.sidebar.divider()
-st.sidebar.markdown("<p style='color:#00ffff;'>🔄 CORE MODES</p>", unsafe_allow_html=True)
-if st.sidebar.button("⚡ 100 QUESTIONS MOCK", use_container_width=True): start_quiz("100問シミュレーション", 100)
-if st.sidebar.button("🔥 ALL CATEGORIES (10Q)", use_container_width=True): start_quiz("全体出題", 10)
+st.sidebar.markdown("📝 **テスト実行モード**")
+if st.sidebar.button("📋 模擬試験 (100問)", use_container_width=True): start_quiz("100問シミュレーション", 100)
+if sidebar_all := st.sidebar.button("🔥 全分野ランダム (10問)", use_container_width=True): start_quiz("全体出題", 10)
 
 st.sidebar.divider()
-st.sidebar.markdown("<p style='color:#00ffff;'>📂 DATABASE DIRECT LINKS</p>", unsafe_allow_html=True)
-if st.sidebar.button("🔮 WORD INTERFERENCE (単語)", use_container_width=True): start_vocab_mode()
-if st.sidebar.button("🧮 COMPUTATION CORE (計算)", use_container_width=True): start_quiz("計算問題特訓", 10)
-if st.sidebar.button("💼 MANAGEMENT (マネジメント)", use_container_width=True): start_quiz("マネジメント系", 10)
-if st.sidebar.button("💻 TECHNOLOGY (テクノロジ)", use_container_width=True): start_quiz("テクノロジ系", 10)
-if st.sidebar.button("📈 STRATEGY (ストラテジ)", use_container_width=True): start_quiz("ストラテジ系", 10)
+st.sidebar.markdown("📂 **分野別ショートカット**")
+if st.sidebar.button("🔮 単語暗記 (4択テスト)", use_container_width=True): start_vocab_mode()
+if st.sidebar.button("🧮 計算問題 特訓コア", use_container_width=True): start_quiz("計算問題特訓", 10)
+if st.sidebar.button("💼 マネジメント系問題", use_container_width=True): start_quiz("マネジメント系", 10)
+if st.sidebar.button("💻 テクノロジ系問題", use_container_width=True): start_quiz("テクノロジ系", 10)
+if st.sidebar.button("📈 ストラテジ系問題", use_container_width=True): start_quiz("ストラテジ系", 10)
 
 
 # ==========================================
 # 7. 画面分岐 1：メインホーム画面
 # ==========================================
 if st.session_state.app_mode == "home":
-    user_tag = f"[{st.session_state.display_name}]"
-    st.markdown(f"<h3 style='color:#00ffff;'>📊 WEAKNESS DETECTION {user_tag}</h3>", unsafe_allow_html=True)
+    # 【改善】ユーザー名を半透明マットシルバーの上品なバッジスタイルで表示
+    user_badge = f"<span style='color: #f1f5f9; background: rgba(255,255,255,0.15); padding: 3px 12px; border-radius: 6px; font-size: 18px; font-weight: 600; margin-left: 10px; border: 1px solid rgba(255,255,255,0.1);'>{st.session_state.display_name}</span>"
+    st.markdown(f"<h3 style='display: flex; align-items: center; margin-bottom: 20px;'>📊 弱点分析カルテ — {user_badge}</h3>", unsafe_allow_html=True)
     
     cols = st.columns(3)
     for i, (cat, count) in enumerate(current_weakness.items()):
         with cols[i]:
-            status_color = "#39ff14" if count == 0 else ("#ffaa00" if count <= 2 else "#ff007f")
-            alert_level = "CLEAR" if count == 0 else ("WARNING" if count <= 2 else "CRITICAL")
+            status_color = "#466b91" if count == 0 else ("#d97706" if count <= 2 else "#dc2626")
+            bg_light = "#f8fafc" 
+            alert_level = "良好 (CLEAR)" if count == 0 else ("要注意 (WARNING)" if count <= 2 else "苦手克服が必要 (CRITICAL)")
             st.markdown(
                 f"""
-                <div class="hud-panel" style="border-color: {status_color}; height: 120px;">
-                    <div style="font-size:12px; color:{status_color};">{cat}</div>
-                    <div style="font-size:24px; font-weight:bold; color:#fff;">ERROR: {count}</div>
-                    <div style="font-size:11px; color:{status_color}; letter-spacing:1px;">STATUS: {alert_level}</div>
+                <div class="hud-panel" style="border-left: 6px solid {status_color}; height: 120px; padding: 15px 20px;">
+                    <div style="font-size:13px; font-weight:bold; color:#64748b;">{cat}</div>
+                    <div style="font-size:26px; font-weight:bold; color:{status_color}; margin: 2px 0;">誤答数: {count}</div>
+                    <div style="font-size:11px; color:#64748b; font-weight:500;">ステータス: {alert_level}</div>
                 </div>
                 """, unsafe_allow_html=True
             )
             
     if st.session_state.is_guest:
-        st.markdown("<p style='color:#ffaa00; font-size:12px;'>⚠️ ※ゲストモードの一時データです。ログアウトまたは画面を閉じるとエラー数はリセットされます。</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#cbd5e1; font-size:13px; margin-top:5px; font-weight:500;'>⚠️ ゲストモードのため、ログアウトすると学習履歴（誤答数）はクリアされます。</p>", unsafe_allow_html=True)
             
     st.divider()
-    st.markdown("<h3 style='color:#00ffff;'>挑戦したいシステムを選択してください</h3>", unsafe_allow_html=True)
+    st.markdown("### 🚀 学習メニューを選択してください")
     
-    if st.button("💻 模擬試験（100問）💻", use_container_width=True, type="primary"):
+    # 本試験シミュレーション（Primary）は落ち着いたディープナイトブルーになります
+    if st.button("💻 本試験シミュレーション（模擬試験 100問）", use_container_width=True, type="primary"):
         start_quiz("100問シミュレーション", 100)
             
     st.write("") 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🔥 全体出題 (10問)", use_container_width=True): start_quiz("全体出題", 10)
-        if st.button("💼 マネジメント系 (知識+計算10問)", use_container_width=True): start_quiz("マネジメント系", 10)
-        if st.button("💻 テクノロジ系 (知識+計算10問)", use_container_width=True): start_quiz("テクノロジ系", 10)
+        if st.button("🔥 ランダム 10問テスト", use_container_width=True): start_quiz("全体出題", 10)
+        if st.button("💼 マネジメント系 (知識＋計算)", use_container_width=True): start_quiz("マネジメント系", 10)
+        if st.button("💻 テクノロジ系 (知識＋計算)", use_container_width=True): start_quiz("テクノロジ系", 10)
     with col2:
-        if st.button("🔮 単語暗記テスト (4択モード)", use_container_width=True): start_vocab_mode()
-        if st.button("📈 ストラテジ系 (知識+計算10問)", use_container_width=True): start_quiz("ストラテジ系", 10)
-        if st.button("🧮 計算問題特訓専用コア (10問)", use_container_width=True): start_quiz("計算問題特訓", 10)
+        if st.button("🔮 重要単語 4択クイズ", use_container_width=True): start_vocab_mode()
+        if st.button("📈 ストラテジ系 (知識＋計算)", use_container_width=True): start_quiz("ストラテジ系", 10)
+        if st.button("🧮 計算問題だけを集中的に解く", use_container_width=True): start_quiz("計算問題特訓", 10)
 
 # ==========================================
 # 8. 画面分岐 2：クイズ実行中
@@ -317,9 +438,11 @@ elif st.session_state.app_mode == "quiz":
     questions = st.session_state.shuffled_questions
 
     if st.session_state.current_index < len(questions):
+        st.markdown(f"**分類:** {questions[st.session_state.current_index]['category']} ｜ **進行度:** {st.session_state.current_index + 1} / {len(questions)}")
+        
         q = questions[st.session_state.current_index]
-        st.markdown(f"<span style='color:#00ffff;'>◆ CATEGORY:</span> {q['category']} ｜ <span style='color:#00ffff;'>◆ TASK:</span> {st.session_state.current_index + 1} / {len(questions)}", unsafe_allow_html=True)
-        st.markdown(f'<div class="hud-panel"><div style="font-size: 12px; color: #00d4ff; margin-bottom: 5px;">[Question]</div><div style="font-size: 20px; color: #ffffff;">{q["text"]}</div></div>', unsafe_allow_html=True)
+        # 問題文パネル
+        st.markdown(f'<div class="hud-panel" style="border-top: 5px solid #1e2d42;"><div style="font-size: 18px; line-height:1.6; font-weight:500;">{q["text"]}</div></div>', unsafe_allow_html=True)
         
         choices = q["choices"]
         row1_cols = st.columns(2)
@@ -329,45 +452,48 @@ elif st.session_state.app_mode == "quiz":
             target_col = row1_cols[i] if i < 2 else row2_cols[i - 2]
             btn_type = "primary" if (st.session_state.answered and choice == q["answer"]) else "secondary"
 
-            if target_col.button(choice, use_container_width=True, key=f"cyber_btn_{st.session_state.current_index}_{i}", disabled=st.session_state.answered, type=btn_type):
+            if target_col.button(choice, use_container_width=True, key=f"modern_btn_{st.session_state.current_index}_{i}", disabled=st.session_state.answered, type=btn_type):
                 st.session_state.answered = True
                 st.session_state.selected_choice = choice
                 if choice == q["answer"]:
                     st.session_state.score += 1
                 else:
                     st.session_state.wrong_questions.append(q)
-                    
                     if "テクノ" in q["category"]: target_cat = "テクノロジ系"
                     elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
                     else: target_cat = "マネジメント系"
-                        
                     st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
                 st.rerun()
 
         if st.session_state.answered:
             st.write("")
-            ans_col1, ans_col2 = st.columns([2, 1])
-            with ans_col1:
+            ans_box = st.container()
+            with ans_box:
                 if st.session_state.selected_choice == q["answer"]:
-                    st.markdown("<h3 style='color:#39ff14; text-shadow: 0 0 10px #39ff14;'>▶ 正解！</h3>", unsafe_allow_html=True)
+                    st.markdown("<h3 style='color:#86efac !important;'>⭕ 正解です！</h3>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"<h3 style='color:#ff007f; text-shadow: 0 0 10px #ff007f;'>▶ 不正解...</h3><p style='color:#00ffff;'>正解: 「{q['answer']}」</p>", unsafe_allow_html=True)
-                st.markdown("<span style='color:#00ffff;'>【解説】</span>", unsafe_allow_html=True)
-                st.write(q['explanation'])
-            with ans_col2:
-                if st.button("▶ 次へ", use_container_width=True, type="primary"):
+                    st.markdown(f"<h3 style='color:#fca5a5 !important;'>❌ 不正解...</h3><p style='font-size:16px; color:#ffffff;'>正解: <b>「{q['answer']}」</b></p>", unsafe_allow_html=True)
+                
+                # 解説パネル
+                st.markdown(f"""
+                <div class="explanation-box">
+                    <b style="color:#1e2d42 !important;">【解説】</b><br>{q['explanation']}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("▶ 次の問題へ進む", use_container_width=True, type="primary"):
                     st.session_state.current_index += 1
                     st.session_state.answered = False
                     st.session_state.selected_choice = None
                     st.rerun()
     else:
         st.balloons() 
-        st.markdown("<h2 style='color:#00ffff; text-shadow: 0 0 10px #00ffff;'>▶ クイズシミュレーション終了</h2>", unsafe_allow_html=True)
-        st.markdown(f"<div style='color:#00ffff; font-size:20px;'>SCORE: {st.session_state.score} / {len(questions)} </div>", unsafe_allow_html=True)
+        st.markdown("## 🏁 テストが終了しました")
+        st.markdown(f"#### あなたのスコア: `{st.session_state.score}` / {len(questions)} 問正解")
         st.divider()
         if len(st.session_state.wrong_questions) > 0:
-            if st.button("▶ 不正解問題のみリトライ ◀", use_container_width=True, type="primary"): start_revenge_quiz()
-        if st.button("🏠 タイトルへ戻る 🏠", use_container_width=True): back_to_home()
+            if st.button("🔄 間違えた問題だけにもう一度挑戦する", use_container_width=True, type="primary"): start_revenge_quiz()
+        if st.button("🏠 ホーム画面に戻る", use_container_width=True): back_to_home()
 
 # ==========================================
 # 9. 画面分岐 3：単語暗記テストモード
@@ -376,13 +502,14 @@ elif st.session_state.app_mode == "vocab":
     vocab_quizzes = st.session_state.vocab_quiz_list
     
     if st.session_state.vocab_index < len(vocab_quizzes):
+        st.markdown(f"**単語テスト進行度:** {st.session_state.vocab_index + 1} / {len(vocab_quizzes)}")
+        
         vq = vocab_quizzes[st.session_state.vocab_index]
-        st.markdown(f"<span style='color:#bd00ff;'>◆ VOCAB SIGNAL:</span> {st.session_state.vocab_index + 1} / {len(vocab_quizzes)}", unsafe_allow_html=True)
-        st.markdown(f'<div class="hud-panel" style="border-color: #bd00ff;"><div style="font-size: 12px; color: #bd00ff;">[ TARGET WORD ]</div><div style="font-size: 36px; font-weight: bold; color: #ffffff;">{vq["word"]}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="hud-panel" style="border-top: 5px solid #1e2d42;"><div style="font-size: 13px; color: #64748b; font-weight: bold;">[ 出題単語 ]</div><div style="font-size: 32px; font-weight: bold; color: #466b91 !important; margin-top:5px;">{vq["word"]}</div></div>', unsafe_allow_html=True)
         
         for idx, choice in enumerate(vq["choices"]):
             btn_type = "primary" if (st.session_state.vocab_answered and choice == vq["answer"]) else "secondary"
-            if st.button(choice, use_container_width=True, key=f"vocab_btn_{st.session_state.vocab_index}_{idx}", disabled=st.session_state.vocab_answered, type=btn_type):
+            if st.button(choice, use_container_width=True, key=f"v_btn_{st.session_state.vocab_index}_{idx}", disabled=st.session_state.vocab_answered, type=btn_type):
                 st.session_state.vocab_answered = True
                 st.session_state.vocab_selected_choice = choice
                 if choice == vq["answer"]:
@@ -394,27 +521,24 @@ elif st.session_state.app_mode == "vocab":
                 
         if st.session_state.vocab_answered:
             st.write("")
-            v_ans_col1, v_ans_col2 = st.columns([2, 1])
-            with v_ans_col1:
-                if st.session_state.vocab_selected_choice == vq["answer"]:
-                    st.markdown("<h3 style='color:#39ff14; text-shadow: 0 0 10px #39ff14;'>▶ SIGNAL CLEAR（正解）</h3>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<h3 style='color:#ff007f; text-shadow: 0 0 10px #ff007f;'>▶ SIGNAL ERROR（不正解）</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='color:#00ffff;'>正解の意味:<br>{vq['answer']}</p>", unsafe_allow_html=True)
-            with v_ans_col2:
-                if st.button("▶ 次の単語へ", use_container_width=True, type="primary"):
-                    st.session_state.vocab_index += 1
-                    st.session_state.vocab_answered = False
-                    st.session_state.vocab_selected_choice = None
-                    st.rerun()
+            if st.session_state.vocab_selected_choice == vq["answer"]:
+                st.markdown("<h3 style='color:#86efac !important;'>⭕ 正解！</h3>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<h3 style='color:#fca5a5 !important;'>❌ 不正解...</h3><p style='font-size:16px; color:#ffffff;'>正解の意味:<br><b style='color:#cbd5e1;'>{vq['answer']}</b></p>", unsafe_allow_html=True)
+                
+            if st.button("▶ 次の単語へ進む", use_container_width=True, type="primary"):
+                st.session_state.vocab_index += 1
+                st.session_state.vocab_answered = False
+                st.session_state.vocab_selected_choice = None
+                st.rerun()
     else:
-        st.markdown("<h2 style='color:#bd00ff; text-shadow: 0 0 10px #bd00ff;'>▶ FLASH MEMORY SEQUENCE COMPLETE</h2>", unsafe_allow_html=True)
-        st.markdown(f"<div style='color:#bd00ff; font-size:20px;'>SCORE: {st.session_state.vocab_score} / {len(vocab_quizzes)} </div>", unsafe_allow_html=True)
+        st.markdown("## 🏁 単語テスト完了")
+        st.markdown(f"#### スコア: `{st.session_state.vocab_score}` / {len(vocab_quizzes)} 単語正解")
         st.divider()
         if len(st.session_state.weak_vocab_list) > 0:
-            st.markdown(f"### 📋 今回誤認したクリティカルワード ({len(st.session_state.weak_vocab_list)}語)")
+            st.markdown("### 📋 今回間違えた重要キーワード")
             for ww in st.session_state.weak_vocab_list:
-                st.markdown(f"- <span style='color:#ff007f; font-weight:bold;'>{ww['word']}</span>: {ww['answer']}", unsafe_allow_html=True)
-        if st.button("🏠 ホームへ戻る", use_container_width=True):
+                st.markdown(f"- **{ww['word']}**: {ww['answer']}")
+        if st.button("🏠 ホーム画面に戻る", use_container_width=True):
             st.session_state.weak_vocab_list = []
             back_to_home()
