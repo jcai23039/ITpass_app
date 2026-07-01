@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import random
 import os
+import streamlit.components.v1 as components
 
 # ==========================================
 # 共通パス設定（ファイルの見失いを防ぐ）
@@ -9,13 +10,15 @@ import os
 BASE_DIR = os.path.dirname(__file__)
 QUESTIONS_FILE = os.path.join(BASE_DIR, "questions.json")
 VOCAB_FILE = os.path.join(BASE_DIR, "vocab.json")
-USER_DATA_FILE = os.path.join(BASE_DIR, "users_data.json") # ★ユーザーデータ保存用ファイル
+USER_DATA_FILE = os.path.join(BASE_DIR, "users_data.json")
+
+# 1問あたりの制限時間（秒単位）
+QUESTION_TIME_LIMIT = 60 
 
 # ==========================================
 # データの永続化（ファイルI/O）用関数
 # ==========================================
 def load_user_data():
-    """保存ファイルからユーザー情報と弱点データを読み込む。無ければ初期データを返す"""
     if os.path.exists(USER_DATA_FILE):
         try:
             with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
@@ -23,7 +26,6 @@ def load_user_data():
         except Exception:
             pass
             
-    # 初回起動時やファイルが壊れている場合のデフォルトデータ
     return {
         "user_db": {
             "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
@@ -36,7 +38,6 @@ def load_user_data():
     }
 
 def save_user_data():
-    """現在のセッション内のユーザーDBと弱点データをファイルに保存する"""
     data_to_save = {
         "user_db": st.session_state.user_db,
         "all_users_weakness": st.session_state.all_users_weakness
@@ -92,10 +93,43 @@ def start_quiz(mode_name, max_questions=10):
         st.session_state.shuffled_questions = filtered_questions[:limit]
         st.session_state.game_started = True
         st.session_state.app_mode = "quiz"
+        st.session_state.current_quiz_mode = mode_name # ★現在のモードを記憶
         st.session_state.current_index = 0
         st.session_state.score = 0
         st.session_state.answered = False
         st.session_state.selected_choice = None
+        st.session_state.is_timeout = False # ★タイムアップ管理フラグ
+        st.session_state.wrong_questions = []
+        st.rerun()
+
+def start_ai_weakness_mode(max_questions=10):
+    all_questions = load_questions()
+    user_weakness = st.session_state.all_users_weakness[st.session_state.username]
+    
+    weakest_cat = max(user_weakness, key=user_weakness.get)
+    highest_errors = user_weakness[weakest_cat]
+    
+    if highest_errors == 0:
+        filtered_questions = all_questions
+        st.session_state.ai_mode_message = "現在、目立った弱点はありません！全分野からランダムに出題します。"
+    else:
+        filtered_questions = [q for q in all_questions if weakest_cat[:5] in q["category"]]
+        st.session_state.ai_mode_message = f"分析結果：現在の苦手分野は「{weakest_cat}」です。この分野を重点的に出題します！"
+        if len(filtered_questions) == 0:
+            filtered_questions = all_questions
+
+    if len(filtered_questions) > 0:
+        random.shuffle(filtered_questions)
+        limit = min(max_questions, len(filtered_questions))
+        st.session_state.shuffled_questions = filtered_questions[:limit]
+        st.session_state.game_started = True
+        st.session_state.app_mode = "quiz"
+        st.session_state.current_quiz_mode = "AI弱点克服"
+        st.session_state.current_index = 0
+        st.session_state.score = 0
+        st.session_state.answered = False
+        st.session_state.selected_choice = None
+        st.session_state.is_timeout = False
         st.session_state.wrong_questions = []
         st.rerun()
 
@@ -105,10 +139,12 @@ def start_revenge_quiz():
     st.session_state.shuffled_questions = revenge_questions
     st.session_state.game_started = True
     st.session_state.app_mode = "quiz"
+    st.session_state.current_quiz_mode = "誤答リベンジ"
     st.session_state.current_index = 0
     st.session_state.score = 0
     st.session_state.answered = False
     st.session_state.selected_choice = None
+    st.session_state.is_timeout = False
     st.session_state.wrong_questions = []
     st.rerun()
 
@@ -140,12 +176,14 @@ def start_vocab_mode():
 def back_to_home():
     st.session_state.game_started = False
     st.session_state.app_mode = "home"
+    st.session_state.current_quiz_mode = None
+    if "ai_mode_message" in st.session_state:
+        del st.session_state.ai_mode_message
     st.rerun()
 
 # ==========================================
 # 3. 状態管理（Session State）の初期化
 # ==========================================
-# ★起動時に一度だけ外部ファイルからユーザーデータを読み込む
 persistent_data = load_user_data()
 
 if "user_db" not in st.session_state: 
@@ -160,9 +198,11 @@ if "is_guest" not in st.session_state: st.session_state.is_guest = False
 
 if "game_started" not in st.session_state: st.session_state.game_started = False
 if "app_mode" not in st.session_state: st.session_state.app_mode = "home"
+if "current_quiz_mode" not in st.session_state: st.session_state.current_quiz_mode = None
 if "shuffled_questions" not in st.session_state: st.session_state.shuffled_questions = []
 if "current_index" not in st.session_state: st.session_state.current_index = 0
 if "answered" not in st.session_state: st.session_state.answered = False
+if "is_timeout" not in st.session_state: st.session_state.is_timeout = False
 if "score" not in st.session_state: st.session_state.score = 0
 if "wrong_questions" not in st.session_state: st.session_state.wrong_questions = []
 if "selected_choice" not in st.session_state: st.session_state.selected_choice = None
@@ -304,6 +344,15 @@ st.markdown(
     section[data-testid="stSidebar"] button:hover {
         background-color: rgba(255, 255, 255, 0.2) !important;
     }
+    
+    /* タイマー用CSS */
+    .timer-container {
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -317,7 +366,6 @@ st.divider()
 # ==========================================
 if not st.session_state.logged_in and not st.session_state.is_guest:
     st.markdown("### 🔐 ログイン・新規登録")
-    
     tab_login, tab_register, tab_guest = st.tabs(["🔑 ログイン", "➕ 新規アカウント作成", "⚡ ゲストプレイ"])
     
     with tab_login:
@@ -336,7 +384,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                     
                     if input_user not in st.session_state.all_users_weakness:
                         st.session_state.all_users_weakness[input_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-                        save_user_data() # ★ファイルへ同期
+                        save_user_data()
                     st.rerun()
                 else:
                     st.error("エラー: IDまたはパスワードが一致しません。")
@@ -357,8 +405,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 else:
                     st.session_state.user_db[reg_user] = {"password": reg_pass, "name": reg_name}
                     st.session_state.all_users_weakness[reg_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-                    
-                    save_user_data() # ★新しく作成したアカウント情報を即座にファイルに保存
+                    save_user_data()
                     st.success("アカウントが作成されました！「ログイン」タブからログインしてください。")
 
     with tab_guest:
@@ -370,7 +417,6 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
             st.session_state.display_name = "ゲストユーザー"
             st.session_state.all_users_weakness["guest_user"] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
             st.rerun()
-            
     st.stop()
 
 current_weakness = st.session_state.all_users_weakness[st.session_state.username]
@@ -393,9 +439,13 @@ if st.sidebar.button("🏠 ホーム画面に戻る", use_container_width=True):
     back_to_home()
     
 st.sidebar.divider()
-st.sidebar.markdown("📝 **テスト実行モード**")
-if st.sidebar.button("📋 模擬試験 (100問)", use_container_width=True): start_quiz("100問シミュレーション", 100)
-if sidebar_all := st.sidebar.button("🔥 全分野ランダム (10問)", use_container_width=True): start_quiz("全体出題", 10)
+st.sidebar.markdown("🎯 **AIおすすめモード**")
+if st.sidebar.button("🔥 AI弱点克服モード (10問)", use_container_width=True): start_ai_weakness_mode(10)
+
+st.sidebar.divider()
+st.sidebar.markdown("編 **テスト実行モード**")
+if st.sidebar.button("📋 模擬試験 (100問・時間制限あり)", use_container_width=True): start_quiz("100問シミュレーション", 100)
+if st.sidebar.button("🔥 全分野ランダム (10問)", use_container_width=True): start_quiz("全体出題", 10)
 
 st.sidebar.divider()
 st.sidebar.markdown("📂 **分野別ショートカット**")
@@ -434,19 +484,22 @@ if st.session_state.app_mode == "home":
     st.divider()
     st.markdown("### 🚀 学習メニューを選択してください")
     
-    if st.button("💻 本試験シミュレーション（模擬試験 100問）", use_container_width=True, type="primary"):
+    if st.button("🔥 弱点克服モード", use_container_width=True, type="primary"):
+        start_ai_weakness_mode(10)
+        
+    if st.button("💻 模擬試験 100問・1問60秒", use_container_width=True):
         start_quiz("100問シミュレーション", 100)
             
     st.write("") 
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔥 ランダム 10問テスト", use_container_width=True): start_quiz("全体出題", 10)
-        if st.button("💼 マネジメント系 (知識＋計算)", use_container_width=True): start_quiz("マネジメント系", 10)
-        if st.button("💻 テクノロジ系 (知識＋計算)", use_container_width=True): start_quiz("テクノロジ系", 10)
+        if st.button("💼 マネジメント系", use_container_width=True): start_quiz("マネジメント系", 10)
+        if st.button("💻 テクノロジ系 ", use_container_width=True): start_quiz("テクノロジ系", 10)
     with col2:
         if st.button("🔮 重要単語 4択クイズ", use_container_width=True): start_vocab_mode()
-        if st.button("📈 ストラテジ系 (知識＋計算)", use_container_width=True): start_quiz("ストラテジ系", 10)
-        if st.button("🧮 計算問題だけを集中的に解く", use_container_width=True): start_quiz("計算問題特訓", 10)
+        if st.button("📈 ストラテジ系", use_container_width=True): start_quiz("ストラテジ系", 10)
+        if st.button("🧮 計算問題", use_container_width=True): start_quiz("計算問題特訓", 10)
 
 # ==========================================
 # 8. 画面分岐 2：クイズ実行中
@@ -455,9 +508,67 @@ elif st.session_state.app_mode == "quiz":
     questions = st.session_state.shuffled_questions
 
     if st.session_state.current_index < len(questions):
+        if "ai_mode_message" in st.session_state and st.session_state.current_index == 0:
+            st.info(st.session_state.ai_mode_message)
+            
         st.markdown(f"**分類:** {questions[st.session_state.current_index]['category']} ｜ **進行度:** {st.session_state.current_index + 1} / {len(questions)}")
         
         q = questions[st.session_state.current_index]
+        
+        # --------------------------------------------------
+        # 【新規追加】本試験シミュレーション専用：時間計測タイマー
+        # --------------------------------------------------
+        if st.session_state.current_quiz_mode == "100問シミュレーション" and not st.session_state.answered:
+            # JavaScriptからタイムアップイベントを受け取るための受け皿
+            timeout_check = st.toggle("hidden_timeout_trigger", value=False, label_visibility="collapsed")
+            
+            # クエリパラメータまたはトグル変更によるタイムアップ処理
+            if timeout_check:
+                st.session_state.answered = True
+                st.session_state.is_timeout = True
+                st.session_state.wrong_questions.append(q)
+                if "テクノ" in q["category"]: target_cat = "テクノロジ系"
+                elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
+                else: target_cat = "マネジメント系"
+                st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
+                save_user_data()
+                st.rerun()
+
+            # 高速かつ正確なフロントエンド側でのHTML/JSタイマーの描画
+            timer_html = f"""
+            <div style="font-family: sans-serif; background-color: #1e2d42; padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-weight: bold; font-size: 15px;">⏱️ 制限時間 残り: <span id="time-display" style="color: #f87171; font-size: 18px;">{QUESTION_TIME_LIMIT}</span> 秒</div>
+                <div style="width: 65%; background-color: #475569; border-radius: 4px; height: 12px; overflow: hidden;">
+                    <div id="progress-bar" style="width: 100%; height: 100%; background-color: #ef4444; transition: width 1s linear;"></div>
+                </div>
+            </div>
+
+            <script>
+                let timeLeft = {QUESTION_TIME_LIMIT};
+                const totalTime = {QUESTION_TIME_LIMIT};
+                const timeDisplay = document.getElementById('time-display');
+                const progressBar = document.getElementById('progress-bar');
+
+                const countdown = setInterval(function() {{
+                    timeLeft--;
+                    if (timeLeft <= 0) {{
+                        clearInterval(countdown);
+                        timeDisplay.textContent = "0";
+                        progressBar.style.width = "0%";
+                        
+                        // Streamlitのトグルボタン要素を自動でクリックさせてタイムアップを通達
+                        parent.document.querySelector('div[data-testid="stCheckbox"] input').click();
+                    }} else {{
+                        timeDisplay.textContent = timeLeft;
+                        let percentage = (timeLeft / totalTime) * 100;
+                        progressBar.style.width = percentage + "%";
+                    }}
+                }}, 1000);
+            </script>
+            """
+            components.html(timer_html, height=60)
+        # --------------------------------------------------
+
         st.markdown(f'<div class="hud-panel" style="border-top: 5px solid #1e2d42;"><div style="font-size: 18px; line-height:1.6; font-weight:500;">{q["text"]}</div></div>', unsafe_allow_html=True)
         
         choices = q["choices"]
@@ -479,14 +590,17 @@ elif st.session_state.app_mode == "quiz":
                     elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
                     else: target_cat = "マネジメント系"
                     st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
-                    save_user_data() # ★誤答カウントが増えたタイミングでファイルに即時書き込み
+                    save_user_data()
                 st.rerun()
 
         if st.session_state.answered:
             st.write("")
             ans_box = st.container()
             with ans_box:
-                if st.session_state.selected_choice == q["answer"]:
+                # タイムアップ判定か、通常の間違いかでメッセージを変化
+                if st.session_state.is_timeout:
+                    st.markdown("<h3 style='color:#f87171 !important;'>⏰ タイムアップ！時間切れです</h3><p style='font-size:16px; color:#ffffff;'>正解: <b>「" + q["answer"] + "」</b></p>", unsafe_allow_html=True)
+                elif st.session_state.selected_choice == q["answer"]:
                     st.markdown("<h3 style='color:#86efac !important;'>⭕ 正解です！</h3>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"<h3 style='color:#fca5a5 !important;'>❌ 不正解...</h3><p style='font-size:16px; color:#ffffff;'>正解: <b>「{q['answer']}」</b></p>", unsafe_allow_html=True)
@@ -501,6 +615,7 @@ elif st.session_state.app_mode == "quiz":
                     st.session_state.current_index += 1
                     st.session_state.answered = False
                     st.session_state.selected_choice = None
+                    st.session_state.is_timeout = False # フラグを戻す
                     st.rerun()
     else:
         st.balloons() 
@@ -533,7 +648,7 @@ elif st.session_state.app_mode == "vocab":
                 else:
                     st.session_state.weak_vocab_list.append(vq)
                     st.session_state.all_users_weakness[st.session_state.username][vq["category"]] += 1
-                    save_user_data() # ★単語テストの誤答数もファイルに同期
+                    save_user_data()
                 st.rerun()
                 
         if st.session_state.vocab_answered:
