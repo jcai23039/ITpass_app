@@ -1,0 +1,38 @@
+{
+    "user_db": {
+        "user01": {
+            "password": "password123",
+            "name": "ALPHA_OPERATOR"
+        },
+        "user02": {
+            "password": "password456",
+            "name": "BETA_TESTER"
+        },
+        "sato": {
+            "password": "1111",
+            "name": "test player"
+        }
+    },
+    "all_users_weakness": {
+        "user01": {
+            "テクノロジ系": 0,
+            "ストラテジ系": 0,
+            "マネジメント系": 0
+        },
+        "user02": {
+            "テクノロジ系": 0,
+            "ストラテジ系": 0,
+            "マネジメント系": 0
+        },
+        "sato": {
+            "テクノロジ系": 3,
+            "ストラテジ系": 2,
+            "マネジメント系": 13
+        },
+        "guest_user": {
+            "テクノロジ系": 2,
+            "ストラテジ系": 0,
+            "マネジメント系": 0
+        }
+    }
+}
