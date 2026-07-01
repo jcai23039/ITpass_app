@@ -1,15 +1,36 @@
 import streamlit as st
 import json
 import random
+import os
 
 # ==========================================
-# ユーザー認証用の簡易データベースの初期化
+# データの永続化（ファイルI/O）用設定・関数
 # ==========================================
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {
-        "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
-        "user02": {"password": "password456", "name": "BETA_TESTER"}
-    }
+USER_DATA_FILE = "users_data.json"
+
+def load_user_data():
+    """ファイルを読み込む。無ければ初期データを返す"""
+    if os.path.exists(USER_DATA_FILE):
+        with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        # 初回起動時のデフォルトデータ
+        return {
+            "user_db": {
+                "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
+                "user02": {"password": "password456", "name": "BETA_TESTER"}
+            },
+            "all_users_weakness": {
+                "user01": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0},
+                "user02": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+            }
+        }
+
+def save_user_data(data):
+    """データをファイルに書き込んで保存する"""
+    with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
 
 # ==========================================
 # 1. データロード
@@ -29,6 +50,7 @@ def load_vocab_words():
         {"word": "SLA", "meaning": "サービス品質合意書。品質や範囲について事前に合意し明文化したもの。", "category": "マネジメント系"},
         {"word": "RPA", "meaning": "定型的な事務作業をソフトウェアロボットに代替させて自動化を図る手段。", "category": "ストラテジ系"}
     ]
+
 
 # ==========================================
 # 2. クイズ抽出・モード遷移関数
@@ -104,9 +126,17 @@ def back_to_home():
     st.session_state.app_mode = "home"
     st.rerun()
 
+
 # ==========================================
 # 3. 状態管理（Session State）の初期化
 # ==========================================
+persistent_data = load_user_data()
+
+if "user_db" not in st.session_state: 
+    st.session_state.user_db = persistent_data["user_db"]
+if "all_users_weakness" not in st.session_state: 
+    st.session_state.all_users_weakness = persistent_data["all_users_weakness"]
+
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "username" not in st.session_state: st.session_state.username = None
 if "display_name" not in st.session_state: st.session_state.display_name = None
@@ -121,9 +151,6 @@ if "score" not in st.session_state: st.session_state.score = 0
 if "wrong_questions" not in st.session_state: st.session_state.wrong_questions = []
 if "selected_choice" not in st.session_state: st.session_state.selected_choice = None
 
-if "all_users_weakness" not in st.session_state:
-    st.session_state.all_users_weakness = {}
-
 if "vocab_quiz_list" not in st.session_state: st.session_state.vocab_quiz_list = []
 if "vocab_index" not in st.session_state: st.session_state.vocab_index = 0
 if "vocab_answered" not in st.session_state: st.session_state.vocab_answered = False
@@ -133,16 +160,13 @@ if "weak_vocab_list" not in st.session_state: st.session_state.weak_vocab_list =
 
 st.set_page_config(layout="wide", page_title="ITパスポート 試験対策アプリ")
 
-# ==========================================
-# 4. クラシックブルー＆マイクロテクスチャCSS
-# ==========================================
+
 # ==========================================
 # 4. クラシックブルー＆マイクロテクスチャCSS
 # ==========================================
 st.markdown(
     """
     <style>
-    /* 全体背景：指定色 #466b91 + 上品なマイクロドットテクスチャを融合 */
     .stApp {
         background-color: #466b91 !important;
         background-image: 
@@ -153,20 +177,17 @@ st.markdown(
         color: #ffffff !important;
     }
     
-    /* ベースのテキストカラーを白に固定 */
     .stApp [data-testid="stMarkdownContainer"] p, 
     .stApp [data-testid="stMarkdownContainer"] li,
     .stApp [data-testid="stMarkdownContainer"] span {
         color: #ffffff;
     }
     
-    /* タイトルやメイン見出し */
     .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
         color: #ffffff;
         font-weight: 700 !important;
     }
     
-    /* 各種情報カード（眩しさを抑えたシルキーホワイト） */
     .hud-panel {
         background: #f8fafc !important;
         border: 1px solid #cbd5e1 !important;
@@ -175,12 +196,10 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         margin-bottom: 20px;
     }
-    /* カード内のフォントを落ち着いたダークグレーに引き締める */
     .hud-panel, .hud-panel * {
         color: #223142 !important;
     }
 
-    /* 解説ボックス */
     .explanation-box {
         background-color: #e2e8f0 !important;
         padding: 15px;
@@ -192,7 +211,6 @@ st.markdown(
         color: #1e293b !important;
     }
 
-    /* 認証フォームエリア */
     div[data-testid="stForm"] {
         background: #f8fafc !important;
         border: 1px solid #cbd5e1 !important;
@@ -208,14 +226,12 @@ st.markdown(
         font-weight: 600;
     }
     
-    /* テキスト入力エリア */
     .stApp input {
         background-color: #ffffff !important;
         color: #1e293b !important;
         border: 1px solid #cbd5e1 !important;
     }
 
-    /* タブの視認性調整 */
     div[data-testid="stTabs"] button {
         color: #cbd5e1 !important;
         font-weight: 600 !important;
@@ -226,31 +242,24 @@ st.markdown(
         border-bottom: 3px solid #ffffff !important;
     }
 
-    /* ------------------------------------------
-       【修正】ボタン関連のスタイル（優先度整理）
-       ------------------------------------------ */
-    
-    /* 1. すべてのボタンのデフォルト（通常ボタン）：サイドバーと同じ濃いネイビー */
     div.stButton > button {
         font-family: inherit !important;
         border-radius: 6px !important;
         font-weight: 600 !important;
         padding: 0.5rem 1rem !important;
         transition: all 0.2s ease;
-        background-color: #1c2e42 !important; /* サイドバーと同じ濃いネイビー */
-        color: #ffffff !important; /* 文字色は白で固定 */
-        border: 1px solid rgba(255, 255, 255, 0.2) !important; /* 軽い白枠 */
+        background-color: #1c2e42 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.15) !important;
     }
     
-    /* 通常ボタンのホバー時 */
     div.stButton > button:hover {
-        background-color: #253d58 !important; /* 少し明るく */
+        background-color: #253d58 !important;
         color: #ffffff !important;
         border-color: rgba(255, 255, 255, 0.4) !important;
     }
     
-    /* 2. Primaryボタン（本試験シミュレーションなど）：知的なディープナイトブルー */
     div.stButton > button[data-testid="baseButton-primary"] {
         background-color: #1e2d42 !important;
         border-color: #1e2d42 !important;
@@ -258,16 +267,12 @@ st.markdown(
         box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
     }
     
-    /* Primaryボタンのホバー時 */
     div.stButton > button[data-testid="baseButton-primary"]:hover {
         background-color: #121c2b !important;
         border-color: #121c2b !important;
         color: #ffffff !important;
     }
 
-    /* ------------------------------------------ */
-
-    /* サイドバーの背景：全体背景に溶け込む深めのミッドナイトネイビー */
     section[data-testid="stSidebar"] {
         background-color: #1c2e42 !important;
         background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px) !important;
@@ -291,6 +296,7 @@ st.markdown(
 
 st.title("📝 ITパスポート 試験対策システム")
 st.divider()
+
 
 # ==========================================
 # 5. ログインチェック & 認証・アカウント作成画面
@@ -317,6 +323,11 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                     
                     if input_user not in st.session_state.all_users_weakness:
                         st.session_state.all_users_weakness[input_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+                        # 新規キー追加をファイルに即時反映
+                        save_user_data({
+                            "user_db": st.session_state.user_db,
+                            "all_users_weakness": st.session_state.all_users_weakness
+                        })
                     st.rerun()
                 else:
                     st.error("エラー: IDまたはパスワードが一致しません。")
@@ -338,6 +349,13 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 else:
                     st.session_state.user_db[reg_user] = {"password": reg_pass, "name": reg_name}
                     st.session_state.all_users_weakness[reg_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+                    
+                    # 【変更箇所】追加されたアカウントデータをファイルへ即時保存
+                    save_user_data({
+                        "user_db": st.session_state.user_db,
+                        "all_users_weakness": st.session_state.all_users_weakness
+                    })
+                    
                     st.success("アカウントが作成されました！「ログイン」タブからログインしてください。")
 
     # --- タブ3：ゲストプレイ ---
@@ -354,6 +372,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
     st.stop()
 
 current_weakness = st.session_state.all_users_weakness[st.session_state.username]
+
 
 # ==========================================
 # 6. アプリメニュー（サイドバー）
@@ -390,7 +409,6 @@ if st.sidebar.button("📈 ストラテジ系問題", use_container_width=True):
 # 7. 画面分岐 1：メインホーム画面
 # ==========================================
 if st.session_state.app_mode == "home":
-    # 【改善】ユーザー名を半透明マットシルバーの上品なバッジスタイルで表示
     user_badge = f"<span style='color: #f1f5f9; background: rgba(255,255,255,0.15); padding: 3px 12px; border-radius: 6px; font-size: 18px; font-weight: 600; margin-left: 10px; border: 1px solid rgba(255,255,255,0.1);'>{st.session_state.display_name}</span>"
     st.markdown(f"<h3 style='display: flex; align-items: center; margin-bottom: 20px;'>📊 弱点分析カルテ — {user_badge}</h3>", unsafe_allow_html=True)
     
@@ -398,7 +416,6 @@ if st.session_state.app_mode == "home":
     for i, (cat, count) in enumerate(current_weakness.items()):
         with cols[i]:
             status_color = "#466b91" if count == 0 else ("#d97706" if count <= 2 else "#dc2626")
-            bg_light = "#f8fafc" 
             alert_level = "良好 (CLEAR)" if count == 0 else ("要注意 (WARNING)" if count <= 2 else "苦手克服が必要 (CRITICAL)")
             st.markdown(
                 f"""
@@ -416,7 +433,6 @@ if st.session_state.app_mode == "home":
     st.divider()
     st.markdown("### 🚀 学習メニューを選択してください")
     
-    # 本試験シミュレーション（Primary）は落ち着いたディープナイトブルーになります
     if st.button("💻 本試験シミュレーション（模擬試験 100問）", use_container_width=True, type="primary"):
         start_quiz("100問シミュレーション", 100)
             
@@ -431,6 +447,7 @@ if st.session_state.app_mode == "home":
         if st.button("📈 ストラテジ系 (知識＋計算)", use_container_width=True): start_quiz("ストラテジ系", 10)
         if st.button("🧮 計算問題だけを集中的に解く", use_container_width=True): start_quiz("計算問題特訓", 10)
 
+
 # ==========================================
 # 8. 画面分岐 2：クイズ実行中
 # ==========================================
@@ -441,7 +458,6 @@ elif st.session_state.app_mode == "quiz":
         st.markdown(f"**分類:** {questions[st.session_state.current_index]['category']} ｜ **進行度:** {st.session_state.current_index + 1} / {len(questions)}")
         
         q = questions[st.session_state.current_index]
-        # 問題文パネル
         st.markdown(f'<div class="hud-panel" style="border-top: 5px solid #1e2d42;"><div style="font-size: 18px; line-height:1.6; font-weight:500;">{q["text"]}</div></div>', unsafe_allow_html=True)
         
         choices = q["choices"]
@@ -463,6 +479,12 @@ elif st.session_state.app_mode == "quiz":
                     elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
                     else: target_cat = "マネジメント系"
                     st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
+                    
+                    # 【変更箇所】通常の誤答カウントアップ時にファイルへ自動保存
+                    save_user_data({
+                        "user_db": st.session_state.user_db,
+                        "all_users_weakness": st.session_state.all_users_weakness
+                    })
                 st.rerun()
 
         if st.session_state.answered:
@@ -474,7 +496,6 @@ elif st.session_state.app_mode == "quiz":
                 else:
                     st.markdown(f"<h3 style='color:#fca5a5 !important;'>❌ 不正解...</h3><p style='font-size:16px; color:#ffffff;'>正解: <b>「{q['answer']}」</b></p>", unsafe_allow_html=True)
                 
-                # 解説パネル
                 st.markdown(f"""
                 <div class="explanation-box">
                     <b style="color:#1e2d42 !important;">【解説】</b><br>{q['explanation']}
@@ -494,6 +515,7 @@ elif st.session_state.app_mode == "quiz":
         if len(st.session_state.wrong_questions) > 0:
             if st.button("🔄 間違えた問題だけにもう一度挑戦する", use_container_width=True, type="primary"): start_revenge_quiz()
         if st.button("🏠 ホーム画面に戻る", use_container_width=True): back_to_home()
+
 
 # ==========================================
 # 9. 画面分岐 3：単語暗記テストモード
@@ -517,6 +539,12 @@ elif st.session_state.app_mode == "vocab":
                 else:
                     st.session_state.weak_vocab_list.append(vq)
                     st.session_state.all_users_weakness[st.session_state.username][vq["category"]] += 1
+                    
+                    # 【変更箇所】単語テストの誤答カウントアップ時にファイルへ自動保存
+                    save_user_data({
+                        "user_db": st.session_state.user_db,
+                        "all_users_weakness": st.session_state.all_users_weakness
+                    })
                 st.rerun()
                 
         if st.session_state.vocab_answered:
