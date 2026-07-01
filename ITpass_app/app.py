@@ -1,43 +1,31 @@
 import streamlit as st
 import json
 import random
-import os
+import os  # ★ファイルパス操作のために追加
 
 # ==========================================
-# データの永続化（ファイルI/O）用設定・関数
+# 共通パス設定（ファイルの見失いを防ぐ）
 # ==========================================
-USER_DATA_FILE = "users_data.json"
+BASE_DIR = os.path.dirname(__file__)
+QUESTIONS_FILE = os.path.join(BASE_DIR, "questions.json")
+VOCAB_FILE = os.path.join(BASE_DIR, "vocab.json")
 
-def load_user_data():
-    """ファイルを読み込む。無ければ初期データを返す"""
-    if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    else:
-        # 初回起動時のデフォルトデータ
-        return {
-            "user_db": {
-                "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
-                "user02": {"password": "password456", "name": "BETA_TESTER"}
-            },
-            "all_users_weakness": {
-                "user01": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0},
-                "user02": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-            }
-        }
-
-def save_user_data(data):
-    """データをファイルに書き込んで保存する"""
-    with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
+# ==========================================
+# ユーザー認証用の簡易データベースの初期化
+# ==========================================
+if "user_db" not in st.session_state:
+    st.session_state.user_db = {
+        "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
+        "user02": {"password": "password456", "name": "BETA_TESTER"}
+    }
 
 # ==========================================
 # 1. データロード
 # ==========================================
 def load_questions():
     try:
-        with open("questions.json", "r", encoding="utf-8") as f:
+        # ★絶対パスで開くように修正
+        with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return [
@@ -46,11 +34,16 @@ def load_questions():
         ]
 
 def load_vocab_words():
-    return [
-        {"word": "SLA", "meaning": "サービス品質合意書。品質や範囲について事前に合意し明文化したもの。", "category": "マネジメント系"},
-        {"word": "RPA", "meaning": "定型的な事務作業をソフトウェアロボットに代替させて自動化を図る手段。", "category": "ストラテジ系"}
-    ]
-
+    try:
+        # ★新設した vocab.json からデータを読み込むように修正
+        with open(VOCAB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # 万が一ファイルが見つからない場合の保険（フォールバック用）
+        return [
+            {"word": "SLA", "meaning": "サービス品質合意書。品質や範囲について事前に合意し明文化したもの。", "category": "マネジメント系"},
+            {"word": "RPA", "meaning": "定型的な事務作業をソフトウェアロボットに代替させて自動化を図る手段。", "category": "ストラテジ系"}
+        ]
 
 # ==========================================
 # 2. クイズ抽出・モード遷移関数
@@ -126,17 +119,9 @@ def back_to_home():
     st.session_state.app_mode = "home"
     st.rerun()
 
-
 # ==========================================
 # 3. 状態管理（Session State）の初期化
 # ==========================================
-persistent_data = load_user_data()
-
-if "user_db" not in st.session_state: 
-    st.session_state.user_db = persistent_data["user_db"]
-if "all_users_weakness" not in st.session_state: 
-    st.session_state.all_users_weakness = persistent_data["all_users_weakness"]
-
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "username" not in st.session_state: st.session_state.username = None
 if "display_name" not in st.session_state: st.session_state.display_name = None
@@ -151,6 +136,9 @@ if "score" not in st.session_state: st.session_state.score = 0
 if "wrong_questions" not in st.session_state: st.session_state.wrong_questions = []
 if "selected_choice" not in st.session_state: st.session_state.selected_choice = None
 
+if "all_users_weakness" not in st.session_state:
+    st.session_state.all_users_weakness = {}
+
 if "vocab_quiz_list" not in st.session_state: st.session_state.vocab_quiz_list = []
 if "vocab_index" not in st.session_state: st.session_state.vocab_index = 0
 if "vocab_answered" not in st.session_state: st.session_state.vocab_answered = False
@@ -159,7 +147,6 @@ if "vocab_score" not in st.session_state: st.session_state.vocab_score = 0
 if "weak_vocab_list" not in st.session_state: st.session_state.weak_vocab_list = []
 
 st.set_page_config(layout="wide", page_title="ITパスポート 試験対策アプリ")
-
 
 # ==========================================
 # 4. クラシックブルー＆マイクロテクスチャCSS
@@ -297,7 +284,6 @@ st.markdown(
 st.title("📝 ITパスポート 試験対策システム")
 st.divider()
 
-
 # ==========================================
 # 5. ログインチェック & 認証・アカウント作成画面
 # ==========================================
@@ -306,7 +292,6 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
     
     tab_login, tab_register, tab_guest = st.tabs(["🔑 ログイン", "➕ 新規アカウント作成", "⚡ ゲストプレイ"])
     
-    # --- タブ1：ログイン ---
     with tab_login:
         with st.form("login_form"):
             input_user = st.text_input("ユーザーID", placeholder="例: user01")
@@ -323,16 +308,10 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                     
                     if input_user not in st.session_state.all_users_weakness:
                         st.session_state.all_users_weakness[input_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-                        # 新規キー追加をファイルに即時反映
-                        save_user_data({
-                            "user_db": st.session_state.user_db,
-                            "all_users_weakness": st.session_state.all_users_weakness
-                        })
                     st.rerun()
                 else:
                     st.error("エラー: IDまたはパスワードが一致しません。")
                     
-    # --- タブ2：新規アカウント作成 ---
     with tab_register:
         with st.form("register_form"):
             st.markdown("必要情報を入力して、新しい学習用アカウントを発行します。")
@@ -349,16 +328,8 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 else:
                     st.session_state.user_db[reg_user] = {"password": reg_pass, "name": reg_name}
                     st.session_state.all_users_weakness[reg_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
-                    
-                    # 【変更箇所】追加されたアカウントデータをファイルへ即時保存
-                    save_user_data({
-                        "user_db": st.session_state.user_db,
-                        "all_users_weakness": st.session_state.all_users_weakness
-                    })
-                    
                     st.success("アカウントが作成されました！「ログイン」タブからログインしてください。")
 
-    # --- タブ3：ゲストプレイ ---
     with tab_guest:
         st.markdown("アカウントを作成せず、すぐに模擬問題を体験できます（※学習履歴は保存されません）。")
         if st.button("ゲストモードで開始する", use_container_width=True, type="primary"):
@@ -372,7 +343,6 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
     st.stop()
 
 current_weakness = st.session_state.all_users_weakness[st.session_state.username]
-
 
 # ==========================================
 # 6. アプリメニュー（サイドバー）
@@ -447,7 +417,6 @@ if st.session_state.app_mode == "home":
         if st.button("📈 ストラテジ系 (知識＋計算)", use_container_width=True): start_quiz("ストラテジ系", 10)
         if st.button("🧮 計算問題だけを集中的に解く", use_container_width=True): start_quiz("計算問題特訓", 10)
 
-
 # ==========================================
 # 8. 画面分岐 2：クイズ実行中
 # ==========================================
@@ -479,12 +448,6 @@ elif st.session_state.app_mode == "quiz":
                     elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
                     else: target_cat = "マネジメント系"
                     st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
-                    
-                    # 【変更箇所】通常の誤答カウントアップ時にファイルへ自動保存
-                    save_user_data({
-                        "user_db": st.session_state.user_db,
-                        "all_users_weakness": st.session_state.all_users_weakness
-                    })
                 st.rerun()
 
         if st.session_state.answered:
@@ -516,7 +479,6 @@ elif st.session_state.app_mode == "quiz":
             if st.button("🔄 間違えた問題だけにもう一度挑戦する", use_container_width=True, type="primary"): start_revenge_quiz()
         if st.button("🏠 ホーム画面に戻る", use_container_width=True): back_to_home()
 
-
 # ==========================================
 # 9. 画面分岐 3：単語暗記テストモード
 # ==========================================
@@ -524,6 +486,7 @@ elif st.session_state.app_mode == "vocab":
     vocab_quizzes = st.session_state.vocab_quiz_list
     
     if st.session_state.vocab_index < len(vocab_quizzes):
+        # ★vocab.jsonのデータ数に応じて進行度が動的に変化します（例：1 / 20）
         st.markdown(f"**単語テスト進行度:** {st.session_state.vocab_index + 1} / {len(vocab_quizzes)}")
         
         vq = vocab_quizzes[st.session_state.vocab_index]
@@ -539,12 +502,6 @@ elif st.session_state.app_mode == "vocab":
                 else:
                     st.session_state.weak_vocab_list.append(vq)
                     st.session_state.all_users_weakness[st.session_state.username][vq["category"]] += 1
-                    
-                    # 【変更箇所】単語テストの誤答カウントアップ時にファイルへ自動保存
-                    save_user_data({
-                        "user_db": st.session_state.user_db,
-                        "all_users_weakness": st.session_state.all_users_weakness
-                    })
                 st.rerun()
                 
         if st.session_state.vocab_answered:
