@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import random
-import os  # ★ファイルパス操作のために追加
+import os
 
 # ==========================================
 # 共通パス設定（ファイルの見失いを防ぐ）
@@ -9,22 +9,47 @@ import os  # ★ファイルパス操作のために追加
 BASE_DIR = os.path.dirname(__file__)
 QUESTIONS_FILE = os.path.join(BASE_DIR, "questions.json")
 VOCAB_FILE = os.path.join(BASE_DIR, "vocab.json")
+USER_DATA_FILE = os.path.join(BASE_DIR, "users_data.json") # ★ユーザーデータ保存用ファイル
 
 # ==========================================
-# ユーザー認証用の簡易データベースの初期化
+# データの永続化（ファイルI/O）用関数
 # ==========================================
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {
-        "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
-        "user02": {"password": "password456", "name": "BETA_TESTER"}
+def load_user_data():
+    """保存ファイルからユーザー情報と弱点データを読み込む。無ければ初期データを返す"""
+    if os.path.exists(USER_DATA_FILE):
+        try:
+            with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+            
+    # 初回起動時やファイルが壊れている場合のデフォルトデータ
+    return {
+        "user_db": {
+            "user01": {"password": "password123", "name": "ALPHA_OPERATOR"},
+            "user02": {"password": "password456", "name": "BETA_TESTER"}
+        },
+        "all_users_weakness": {
+            "user01": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0},
+            "user02": {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+        }
     }
 
+def save_user_data():
+    """現在のセッション内のユーザーDBと弱点データをファイルに保存する"""
+    data_to_save = {
+        "user_db": st.session_state.user_db,
+        "all_users_weakness": st.session_state.all_users_weakness
+    }
+    with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data_to_save, f, ensure_ascii=False, indent=4)
+
+
 # ==========================================
-# 1. データロード
+# 1. 問題・単語データロード
 # ==========================================
 def load_questions():
     try:
-        # ★絶対パスで開くように修正
         with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
@@ -35,11 +60,9 @@ def load_questions():
 
 def load_vocab_words():
     try:
-        # ★新設した vocab.json からデータを読み込むように修正
         with open(VOCAB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        # 万が一ファイルが見つからない場合の保険（フォールバック用）
         return [
             {"word": "SLA", "meaning": "サービス品質合意書。品質や範囲について事前に合意し明文化したもの。", "category": "マネジメント系"},
             {"word": "RPA", "meaning": "定型的な事務作業をソフトウェアロボットに代替させて自動化を図る手段。", "category": "ストラテジ系"}
@@ -122,6 +145,14 @@ def back_to_home():
 # ==========================================
 # 3. 状態管理（Session State）の初期化
 # ==========================================
+# ★起動時に一度だけ外部ファイルからユーザーデータを読み込む
+persistent_data = load_user_data()
+
+if "user_db" not in st.session_state: 
+    st.session_state.user_db = persistent_data["user_db"]
+if "all_users_weakness" not in st.session_state: 
+    st.session_state.all_users_weakness = persistent_data["all_users_weakness"]
+
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "username" not in st.session_state: st.session_state.username = None
 if "display_name" not in st.session_state: st.session_state.display_name = None
@@ -135,9 +166,6 @@ if "answered" not in st.session_state: st.session_state.answered = False
 if "score" not in st.session_state: st.session_state.score = 0
 if "wrong_questions" not in st.session_state: st.session_state.wrong_questions = []
 if "selected_choice" not in st.session_state: st.session_state.selected_choice = None
-
-if "all_users_weakness" not in st.session_state:
-    st.session_state.all_users_weakness = {}
 
 if "vocab_quiz_list" not in st.session_state: st.session_state.vocab_quiz_list = []
 if "vocab_index" not in st.session_state: st.session_state.vocab_index = 0
@@ -308,6 +336,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                     
                     if input_user not in st.session_state.all_users_weakness:
                         st.session_state.all_users_weakness[input_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+                        save_user_data() # ★ファイルへ同期
                     st.rerun()
                 else:
                     st.error("エラー: IDまたはパスワードが一致しません。")
@@ -328,6 +357,8 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 else:
                     st.session_state.user_db[reg_user] = {"password": reg_pass, "name": reg_name}
                     st.session_state.all_users_weakness[reg_user] = {"テクノロジ系": 0, "ストラテジ系": 0, "マネジメント系": 0}
+                    
+                    save_user_data() # ★新しく作成したアカウント情報を即座にファイルに保存
                     st.success("アカウントが作成されました！「ログイン」タブからログインしてください。")
 
     with tab_guest:
@@ -448,6 +479,7 @@ elif st.session_state.app_mode == "quiz":
                     elif "ストラテジ" in q["category"]: target_cat = "ストラテジ系"
                     else: target_cat = "マネジメント系"
                     st.session_state.all_users_weakness[st.session_state.username][target_cat] += 1
+                    save_user_data() # ★誤答カウントが増えたタイミングでファイルに即時書き込み
                 st.rerun()
 
         if st.session_state.answered:
@@ -486,7 +518,6 @@ elif st.session_state.app_mode == "vocab":
     vocab_quizzes = st.session_state.vocab_quiz_list
     
     if st.session_state.vocab_index < len(vocab_quizzes):
-        # ★vocab.jsonのデータ数に応じて進行度が動的に変化します（例：1 / 20）
         st.markdown(f"**単語テスト進行度:** {st.session_state.vocab_index + 1} / {len(vocab_quizzes)}")
         
         vq = vocab_quizzes[st.session_state.vocab_index]
@@ -502,6 +533,7 @@ elif st.session_state.app_mode == "vocab":
                 else:
                     st.session_state.weak_vocab_list.append(vq)
                     st.session_state.all_users_weakness[st.session_state.username][vq["category"]] += 1
+                    save_user_data() # ★単語テストの誤答数もファイルに同期
                 st.rerun()
                 
         if st.session_state.vocab_answered:
